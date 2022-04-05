@@ -8,7 +8,7 @@ import GET_DATA from "../../api/schema";
 
 const Context = createContext();
 
-const key = "message-show";
+const key = "message-show-load";
 
 const colors = {
   accumulatedMonthly: "#21A3ED",
@@ -28,18 +28,21 @@ export default function Provider({ children }) {
 
   const showMessage = (type) => {
     if (type === "loading")
-      return message.loading({ prefixCls: "", content: "Carregando...",  key });
+      return message.loading({
+        content: <p className="mb-0">Calculando poupança...</p>,
+        key,
+      });
     if (type === "success")
       return message.success({
-        content: "Poupança calculada!",
+        content: <p className="mb-0">Poupança calculada!</p>,
+        duration: 2.5,
         key,
-        duration: 3,
       });
     if (type === "error")
       return message.error({
-        content: "Erro ao calcular poupança!",
-        key,
+        content: <p className="mb-0">Error ao calcular poupança!</p>,
         duration: 3,
+        key,
       });
   };
 
@@ -94,7 +97,6 @@ export default function Provider({ children }) {
               j,
             },
           });
-          setDatas();
           showMessage("success");
         } catch {
           showMessage("error");
@@ -110,8 +112,9 @@ export default function Provider({ children }) {
     }
   }, [vi, vp, j, t]);
 
-  if (!loading && data && (pieData.data.length === 0 || lineData.length === 0))
+  useEffect(() => {
     setDatas();
+  }, [data]);
 
   const setAll = (values) => {
     setJ(values.j);
