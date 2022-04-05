@@ -2,7 +2,6 @@ import React, { useState, useCallback } from "react";
 
 import Image from "next/image";
 
-
 import BasicData from "../components/BasicData";
 import Charts from "../components/Charts";
 

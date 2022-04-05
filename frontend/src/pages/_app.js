@@ -2,7 +2,8 @@ import Head from "next/head";
 
 import "../styles/globals.css";
 
-import Provider from "../components/context/Context";
+import ContextProvider from "../components/context/Context";
+import ApolloProvider from "../api";
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -10,9 +11,11 @@ function MyApp({ Component, pageProps }) {
       <Head>
         <title>Planejador de Poupança</title>
       </Head>
-      <Provider>
-        <Component {...pageProps} />
-      </Provider>
+      <ApolloProvider>
+        <ContextProvider>
+          <Component {...pageProps} />
+        </ContextProvider>
+      </ApolloProvider>
     </>
   );
 }

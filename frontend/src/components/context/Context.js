@@ -1,12 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-import "antd/dist/antd.css";
-
 import { message } from "antd";
+
+import { useLazyQuery } from "@apollo/client";
+
+import GET_DATA from "../../api/schema";
 
 const Context = createContext();
 
 const key = "message-show";
+
+const colors = {
+  accumulatedMonthly: "#21A3ED",
+  totalInterestRate: "#7B1CF3",
+  initialInvestment: "#07CC6D",
+  accumulatedValue: "#09B682",
+  investedValue: "#868686",
+};
 
 export default function Provider({ children }) {
   const [vi, setVi] = useState(0);
@@ -14,9 +24,11 @@ export default function Provider({ children }) {
   const [t, setT] = useState(0);
   const [j, setJ] = useState(0);
 
+  const [getData, { loading, error, data }] = useLazyQuery(GET_DATA);
+
   const showMessage = (type) => {
     if (type === "loading")
-      return message.loading({ content: "Carregando...", key });
+      return message.loading({ prefixCls: "", content: "Carregando...",  key });
     if (type === "success")
       return message.success({
         content: "Poupança calculada!",
@@ -31,126 +43,75 @@ export default function Provider({ children }) {
       });
   };
 
-  const [data, setData] = useState({
+  const [pieData, setPieData] = useState({
     accumulatedValue: 0.0,
-    spare: 0.0,
+    spared: 0.0,
     accumulatedMonthly: 0.0,
     totalInterestRate: 0.0,
     initialInvestment: 0.0,
+    data: [],
   });
 
-  const [pieData, setPieData] = useState([]);
-
-  const [lineData, setLineData] = useState([
-    {
-      name: "Valor Investido",
-      color: "#868686",
-      data: [],
-    },
-    {
-      name: "Valor Acumulado",
-      color: "#09B682",
-      data: [],
-    },
-  ]);
+  const [lineData, setLineData] = useState([]);
 
   const setDatas = () => {
-    let accumulatedValue = vi;
+    if (!data) return;
 
-    let investedAmountList = [accumulatedValue];
-    let accumulatedValueList = [accumulatedValue];
+    let lineAux = lineData;
 
-    const oneTwelfth = 1 / 12;
-    const oldPercent = 1.0 + j / 100;
+    lineAux = data.getLine.map((l, i) => ({
+      ...l,
+      color: colors[l.id],
+    }));
 
-    let interestRate = Math.pow(oldPercent, oneTwelfth);
+    let pieAux = pieData;
+    pieAux = Object.assign(pieAux, data.getPie);
 
-    investedAmountList = [
-      ...investedAmountList,
-      ...Array(t)
-        .fill(0)
-        .map((_, index) => vi + vp * (index + 1)),
-    ];
-
-    accumulatedValueList = [
-      ...accumulatedValueList,
-      ...Array(t)
-        .fill(0)
-        .map(() => {
-          let saving = accumulatedValue * interestRate;
-          accumulatedValue = saving + vp;
-          return accumulatedValue;
-        }),
-    ];
-
-    let lineArrayData = lineData;
-
-    lineArrayData[0].data = investedAmountList;
-    lineArrayData[1].data = accumulatedValueList;
-
-    setLineData(lineArrayData);
-
-    let dataChart = {
-      accumulatedValue: accumulatedValueList[investedAmountList.length - 1],
-      spare: investedAmountList[investedAmountList.length - 1],
-      accumulatedMonthly:
-        investedAmountList[accumulatedValueList.length - 1] - vi,
-      totalInterestRate:
-        accumulatedValueList[accumulatedValueList.length - 1] -
-        investedAmountList[investedAmountList.length - 1],
-      initialInvestment: vi,
-    };
-
-    setData(dataChart);
-
-    setPieData([
-      {
-        label: "Investimento Mensal Acumulado",
-        value: parseFloat(dataChart.accumulatedMonthly).toFixed(2),
-        itemStyle: {
-          color: "#21A3ED",
-        },
-        percent: dataChart.accumulatedMonthly / dataChart.accumulatedValue,
+    pieAux.data = data.getPie.data.map((p, i) => ({
+      ...p,
+      itemStyle: {
+        color: colors[p.id],
       },
-      {
-        label: "Juros",
-        value: dataChart.totalInterestRate,
-        itemStyle: {
-          color: "#7B1CF3",
-        },
-        percent: dataChart.totalInterestRate / dataChart.accumulatedValue,
-      },
-      {
-        label: "Investimento Inicial",
-        value: dataChart.initialInvestment,
-        itemStyle: {
-          color: "#07CC6D",
-        },
-        percent: dataChart.initialInvestment / dataChart.accumulatedValue,
-      },
-    ]);
+    }));
+
+    setLineData(lineAux);
+
+    setPieData(pieAux);
+
+    return true;
   };
 
   useEffect(() => {
     if (vi * vp * j * t > 0) {
-      const intervalId = setInterval(() => {
+      showMessage("loading");
+      const intervalId = setInterval(async () => {
         try {
-          showMessage("loading");
-          setDatas();
-          setAll({
-            j: 0.0,
-            vi: 0.0,
-            vp: 0.0,
-            t: 0.0,
+          await getData({
+            variables: {
+              vi,
+              vp,
+              t,
+              j,
+            },
           });
+          setDatas();
           showMessage("success");
         } catch {
           showMessage("error");
         }
+        setAll({
+          j: 0.0,
+          vi: 0.0,
+          vp: 0.0,
+          t: 0.0,
+        });
       }, 1000 * 2);
       return () => clearInterval(intervalId);
     }
   }, [vi, vp, j, t]);
+
+  if (!loading && data && (pieData.data.length === 0 || lineData.length === 0))
+    setDatas();
 
   const setAll = (values) => {
     setJ(values.j);
@@ -166,17 +127,14 @@ export default function Provider({ children }) {
         vp,
         t,
         j,
-        data,
         pieData,
         lineData,
         setVi,
         setVp,
         setT,
         setJ,
-        setData,
         setPieData,
         setLineData,
-        showMessage,
       }}
     >
       {children}

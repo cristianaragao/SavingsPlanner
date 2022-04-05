@@ -42,7 +42,7 @@ const LineChart = () => {
           borderColor: "#fff",
           borderWidth: 15,
         },
-        data: pieData.sort(),
+        data: pieData.data.sort(),
       },
     ],
   };
